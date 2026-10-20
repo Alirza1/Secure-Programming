@@ -1,4 +1,4 @@
-﻿using System.Text;
+﻿using System.Text.Json;
 
 namespace SecurePasswordManager.Storage
 {
@@ -16,19 +16,31 @@ namespace SecurePasswordManager.Storage
             return File.Exists(_vaultPath);
         }
 
-        public void Save(string content)
+        public void Save(VaultFileData vaultFileData)
         {
-            File.WriteAllText(_vaultPath, content, Encoding.UTF8);
+            string json = JsonSerializer.Serialize(vaultFileData);
+
+            File.WriteAllText(_vaultPath, json);
         }
 
-        public string Load()
+        public VaultFileData Load()
         {
             if (!VaultExists())
             {
                 throw new FileNotFoundException("Vault file was not found.");
             }
 
-            return File.ReadAllText(_vaultPath, Encoding.UTF8);
+            string json = File.ReadAllText(_vaultPath);
+
+            VaultFileData? vaultFileData =
+                JsonSerializer.Deserialize<VaultFileData>(json);
+
+            if (vaultFileData == null)
+            {
+                throw new InvalidDataException("Invalid vault file.");
+            }
+
+            return vaultFileData;
         }
     }
 }
