@@ -120,5 +120,80 @@ namespace SecurePasswordManager.Vault
 
             _storage.Save(vaultFile);
         }
+
+        public void AddCredential(string service, string username, string password)
+        {
+            if (_vaultData == null)
+            {
+                throw new InvalidOperationException("Vault is not unlocked.");
+            }
+
+            var credential = new Credential
+            {
+                Service = service,
+                Username = username,
+                Password = password
+            };
+
+            _vaultData.Credentials.Add(credential);
+
+            SaveVault();
+        }
+
+        public List<Credential> GetCredentials()
+        {
+            if (_vaultData == null)
+            {
+                throw new InvalidOperationException("Vault is not unlocked.");
+            }
+
+            return _vaultData.Credentials;
+        }
+
+        public bool UpdateCredential(
+            int index,
+            string service,
+            string username,
+            string password)
+        {
+            if (_vaultData == null)
+            {
+                throw new InvalidOperationException("Vault is not unlocked.");
+            }
+
+            if (index < 0 || index >= _vaultData.Credentials.Count)
+            {
+                return false;
+            }
+
+            Credential credential = _vaultData.Credentials[index];
+
+            credential.Service = service;
+            credential.Username = username;
+            credential.Password = password;
+
+            SaveVault();
+
+            return true;
+        }
+
+        public bool DeleteCredential(int index)
+        {
+            if (_vaultData == null)
+            {
+                throw new InvalidOperationException("Vault is not unlocked.");
+            }
+
+            if (index < 0 || index >= _vaultData.Credentials.Count)
+            {
+                return false;
+            }
+
+            _vaultData.Credentials.RemoveAt(index);
+
+            SaveVault();
+
+            return true;
+        }
     }
 }
