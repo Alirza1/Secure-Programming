@@ -67,3 +67,47 @@ Debug -> Start Without Debugging
 The application can also be run from the command line:
 
 dotnet run --project SecurePasswordManager
+
+## Checkpoint 2 Status
+
+The following core features are implemented:
+
+- Basic vault storage
+- Master password authentication
+- PBKDF2-HMAC-SHA256 key derivation
+- AES-256-GCM encryption
+- Encrypted credential storage
+- Add credential
+- List credentials
+- Update credential
+- Delete credential
+- Hidden password input
+- Basic input validation
+- Passwords are not displayed in cleartext
+
+## Build Instructions
+
+Requirements:
+
+- Windows
+- .NET SDK
+- Visual Studio 2022 or another environment capable of building .NET projects
+
+### Using Visual Studio 2022
+
+1. Clone or download the repository.
+2. Open `SecurePasswordManager.sln`.
+3. Build the solution using:
+
+   `Build -> Build Solution`
+
+4. Run the application using:
+
+   `Debug -> Start Without Debugging`
+
+### Using the Command Line
+
+From the repository directory:
+
+```bash
+dotnet build
