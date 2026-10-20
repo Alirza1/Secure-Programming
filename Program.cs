@@ -2,6 +2,7 @@
 using SecurePasswordManager.Encryption;
 using SecurePasswordManager.Storage;
 using SecurePasswordManager.Vault;
+using SecurePasswordManager.Validation;
 
 var storage = new VaultStorage("vault.dat");
 var authService = new MasterPasswordService();
@@ -21,7 +22,13 @@ if (!vaultService.VaultExists())
     Console.WriteLine("No vault found.");
     Console.Write("Create master password: ");
 
-    string masterPassword = Console.ReadLine() ?? string.Empty;
+    string masterPassword = ReadPassword();
+
+    if (!InputValidator.IsValidPassword(masterPassword))
+    {
+        Console.WriteLine("Master password must be at least 8 characters long.");
+        return;
+    }
 
     vaultService.CreateVault(masterPassword);
 
@@ -31,7 +38,7 @@ else
 {
     Console.Write("Enter master password: ");
 
-    string masterPassword = Console.ReadLine() ?? string.Empty;
+    string masterPassword = ReadPassword();
 
     bool unlocked = vaultService.UnlockVault(masterPassword);
 
@@ -93,11 +100,29 @@ static void AddCredential(VaultService vaultService)
     Console.Write("Service: ");
     string service = Console.ReadLine() ?? string.Empty;
 
+    if (!InputValidator.IsValidRequiredText(service))
+    {
+        Console.WriteLine("Invalid service name.");
+        return;
+    }
+
     Console.Write("Username: ");
     string username = Console.ReadLine() ?? string.Empty;
 
+    if (!InputValidator.IsValidRequiredText(username))
+    {
+        Console.WriteLine("Invalid username.");
+        return;
+    }
+
     Console.Write("Password: ");
-    string password = Console.ReadLine() ?? string.Empty;
+    string password = ReadPassword();
+
+    if (!InputValidator.IsValidPassword(password))
+    {
+        Console.WriteLine("Password must be at least 8 characters long.");
+        return;
+    }
 
     vaultService.AddCredential(
         service,
@@ -170,7 +195,7 @@ static void UpdateCredential(VaultService vaultService)
     string username = Console.ReadLine() ?? string.Empty;
 
     Console.Write("New password: ");
-    string password = Console.ReadLine() ?? string.Empty;
+    string password = ReadPassword();
 
     bool updated =
         vaultService.UpdateCredential(
@@ -234,4 +259,37 @@ static void DeleteCredential(VaultService vaultService)
             "Credential not found."
         );
     }
+}
+
+static string ReadPassword()
+{
+    string password = string.Empty;
+
+    while (true)
+    {
+        ConsoleKeyInfo key = Console.ReadKey(intercept: true);
+
+        if (key.Key == ConsoleKey.Enter)
+        {
+            Console.WriteLine();
+            break;
+        }
+
+        if (key.Key == ConsoleKey.Backspace)
+        {
+            if (password.Length > 0)
+            {
+                password = password[..^1];
+            }
+
+            continue;
+        }
+
+        if (!char.IsControl(key.KeyChar))
+        {
+            password += key.KeyChar;
+        }
+    }
+
+    return password;
 }
