@@ -14,6 +14,18 @@ var vaultService = new VaultService(
     encryptionService
 );
 
+Console.CancelKeyPress += (sender, e) =>
+{
+    e.Cancel = true;
+
+    vaultService.LockVault();
+
+    Console.WriteLine();
+    Console.WriteLine("Vault locked. Exiting safely.");
+
+    Environment.Exit(0);
+};
+
 Console.WriteLine("Secure Password Manager");
 Console.WriteLine();
 
@@ -100,18 +112,24 @@ vaultService.LockVault();
 static void AddCredential(VaultService vaultService)
 {
     Console.Write("Service: ");
-    string service = Console.ReadLine() ?? string.Empty;
+    string service =
+        InputValidator.SanitizeText(
+            Console.ReadLine() ?? string.Empty
+        );
 
-    if (!InputValidator.IsValidRequiredText(service))
+    if (!InputValidator.IsValidService(service))
     {
         Console.WriteLine("Invalid service name.");
         return;
     }
 
     Console.Write("Username: ");
-    string username = Console.ReadLine() ?? string.Empty;
+    string username =
+        InputValidator.SanitizeText(
+            Console.ReadLine() ?? string.Empty
+        );
 
-    if (!InputValidator.IsValidRequiredText(username))
+    if (!InputValidator.IsValidUsername(username))
     {
         Console.WriteLine("Invalid username.");
         return;
@@ -122,17 +140,11 @@ static void AddCredential(VaultService vaultService)
 
     if (!InputValidator.IsValidPassword(password))
     {
-        Console.WriteLine("Password must be at least 8 characters long.");
+        Console.WriteLine(
+            "Password must be between 8 and 200 characters and contain no control characters."
+        );
         return;
     }
-
-    vaultService.AddCredential(
-        service,
-        username,
-        password
-    );
-
-    Console.WriteLine("Credential added successfully.");
 }
 
 static void ListCredentials(VaultService vaultService)
@@ -177,18 +189,17 @@ static void UpdateCredential(VaultService vaultService)
     }
 
     ListCredentials(vaultService);
+    Console.Write("Credential number: ");
+    string input = Console.ReadLine() ?? string.Empty;
 
-    Console.Write("Credential number to update: ");
-
-    if (!int.TryParse(
-        Console.ReadLine(),
-        out int number))
+    if (!InputValidator.IsValidCredentialNumber(
+            input,
+            credentials.Count,
+            out int index))
     {
-        Console.WriteLine("Invalid number.");
+        Console.WriteLine("Invalid credential number.");
         return;
     }
-
-    int index = number - 1;
 
     Console.Write("New service: ");
     string service = Console.ReadLine() ?? string.Empty;
