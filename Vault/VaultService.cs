@@ -33,8 +33,13 @@ namespace SecurePasswordManager.Vault
 
         public void CreateVault(string masterPassword)
         {
+            LockVault();
+
             _salt = _authService.GenerateSalt();
-            _key = _authService.DeriveKey(masterPassword, _salt);
+            _key = _authService.DeriveKey(
+                masterPassword,
+                _salt
+            );
 
             _vaultData = new VaultData();
 
@@ -43,13 +48,15 @@ namespace SecurePasswordManager.Vault
 
         public bool UnlockVault(string masterPassword)
         {
+            byte[]? temporaryKey = null;
+
             try
             {
                 VaultFileData vaultFile = _storage.Load();
 
                 _salt = Convert.FromBase64String(vaultFile.Salt);
 
-                byte[] key = _authService.DeriveKey(
+                temporaryKey = _authService.DeriveKey(
                     masterPassword,
                     _salt
                 );
@@ -57,7 +64,7 @@ namespace SecurePasswordManager.Vault
                 string decryptedJson =
                     _encryptionService.Decrypt(
                         vaultFile.EncryptedData,
-                        key
+                        temporaryKey
                     );
 
                 VaultData? loadedVault =
@@ -70,25 +77,33 @@ namespace SecurePasswordManager.Vault
                     return false;
                 }
 
-                _key = key;
+                _key = temporaryKey;
+                temporaryKey = null;
+
                 _vaultData = loadedVault;
 
                 return true;
             }
-            catch (
-                CryptographicException)
+            catch (CryptographicException)
             {
                 return false;
             }
-            catch (
-                FormatException)
+            catch (FormatException)
             {
                 return false;
             }
-            catch (
-                JsonException)
+            catch (JsonException)
             {
                 return false;
+            }
+            finally
+            {
+                if (temporaryKey != null)
+                {
+                    CryptographicOperations.ZeroMemory(
+                        temporaryKey
+                    );
+                }
             }
         }
 
@@ -194,6 +209,23 @@ namespace SecurePasswordManager.Vault
             SaveVault();
 
             return true;
+        }
+
+        public void LockVault()
+        {
+            if (_key != null)
+            {
+                CryptographicOperations.ZeroMemory(_key);
+                _key = null;
+            }
+
+            if (_salt != null)
+            {
+                CryptographicOperations.ZeroMemory(_salt);
+                _salt = null;
+            }
+
+            _vaultData = null;
         }
     }
 }

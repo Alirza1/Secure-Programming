@@ -85,6 +85,7 @@ while (running)
             break;
 
         case "5":
+            vaultService.LockVault();
             running = false;
             Console.WriteLine("Vault locked. Goodbye.");
             break;
@@ -93,8 +94,9 @@ while (running)
             Console.WriteLine("Invalid option.");
             break;
     }
+    
 }
-
+vaultService.LockVault();
 static void AddCredential(VaultService vaultService)
 {
     Console.Write("Service: ");
