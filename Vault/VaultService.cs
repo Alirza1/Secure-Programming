@@ -15,6 +15,7 @@ namespace SecurePasswordManager.Vault
         private VaultData? _vaultData;
         private byte[]? _key;
         private byte[]? _salt;
+        private string? _currentOwnerId;
 
         public VaultService(
             VaultStorage storage,
@@ -31,17 +32,25 @@ namespace SecurePasswordManager.Vault
             return _storage.VaultExists();
         }
 
-        public void CreateVault(string masterPassword)
+        public void CreateVault(
+            string masterPassword)
         {
             LockVault();
 
-            _salt = _authService.GenerateSalt();
-            _key = _authService.DeriveKey(
-                masterPassword,
-                _salt
-            );
+            _salt =
+                _authService.GenerateSalt();
 
-            _vaultData = new VaultData();
+            _key =
+                _authService.DeriveKey(
+                    masterPassword,
+                    _salt
+                );
+
+            _currentOwnerId =
+                CreateOwnerId(_key);
+
+            _vaultData =
+                new VaultData();
 
             SaveVault();
         }
@@ -79,8 +88,10 @@ namespace SecurePasswordManager.Vault
 
                 _key = temporaryKey;
                 temporaryKey = null;
-
+                
                 _vaultData = loadedVault;
+
+                _currentOwnerId = CreateOwnerId(_key);
 
                 return true;
             }
@@ -136,33 +147,59 @@ namespace SecurePasswordManager.Vault
             _storage.Save(vaultFile);
         }
 
-        public void AddCredential(string service, string username, string password)
+        public void AddCredential(
+            string service,
+            string username,
+            string password)
         {
-            if (_vaultData == null)
+            if (_vaultData == null ||
+                _currentOwnerId == null)
             {
-                throw new InvalidOperationException("Vault is not unlocked.");
+                throw new InvalidOperationException(
+                    "Vault is not unlocked."
+                );
             }
 
-            var credential = new Credential
-            {
-                Service = service,
-                Username = username,
-                Password = password
-            };
+            var credential =
+                new Credential
+                {
+                    OwnerId =
+                        _currentOwnerId,
 
-            _vaultData.Credentials.Add(credential);
+                    Service =
+                        service,
+
+                    Username =
+                        username,
+
+                    Password =
+                        password
+                };
+
+            _vaultData.Credentials.Add(
+                credential
+            );
 
             SaveVault();
         }
 
         public List<Credential> GetCredentials()
         {
-            if (_vaultData == null)
+            if (_vaultData == null ||
+                _currentOwnerId == null)
             {
-                throw new InvalidOperationException("Vault is not unlocked.");
+                throw new InvalidOperationException(
+                    "Vault is not unlocked."
+                );
             }
 
-            return _vaultData.Credentials;
+            return _vaultData.Credentials
+                .Where(
+                    credential =>
+                        credential.OwnerId ==
+                        _currentOwnerId
+                )
+                .ToList();
         }
 
         public bool UpdateCredential(
@@ -171,17 +208,37 @@ namespace SecurePasswordManager.Vault
             string username,
             string password)
         {
-            if (_vaultData == null)
+            if (_vaultData == null ||
+                _currentOwnerId == null)
             {
-                throw new InvalidOperationException("Vault is not unlocked.");
+                throw new InvalidOperationException(
+                    "Vault is not unlocked."
+                );
             }
 
-            if (index < 0 || index >= _vaultData.Credentials.Count)
+            List<Credential> ownedCredentials =
+                _vaultData.Credentials
+                    .Where(
+                        credential =>
+                            credential.OwnerId ==
+                            _currentOwnerId
+                    )
+                    .ToList();
+
+            if (index < 0 ||
+                index >= ownedCredentials.Count)
             {
                 return false;
             }
 
-            Credential credential = _vaultData.Credentials[index];
+            Credential credential =
+                ownedCredentials[index];
+
+            if (credential.OwnerId !=
+                _currentOwnerId)
+            {
+                return false;
+            }
 
             credential.Service = service;
             credential.Username = username;
@@ -192,19 +249,44 @@ namespace SecurePasswordManager.Vault
             return true;
         }
 
-        public bool DeleteCredential(int index)
+        public bool DeleteCredential(
+            int index)
         {
-            if (_vaultData == null)
+            if (_vaultData == null ||
+                _currentOwnerId == null)
             {
-                throw new InvalidOperationException("Vault is not unlocked.");
+                throw new InvalidOperationException(
+                    "Vault is not unlocked."
+                );
             }
 
-            if (index < 0 || index >= _vaultData.Credentials.Count)
+            List<Credential> ownedCredentials =
+                _vaultData.Credentials
+                    .Where(
+                        credential =>
+                            credential.OwnerId ==
+                            _currentOwnerId
+                    )
+                    .ToList();
+
+            if (index < 0 ||
+                index >= ownedCredentials.Count)
             {
                 return false;
             }
 
-            _vaultData.Credentials.RemoveAt(index);
+            Credential credential =
+                ownedCredentials[index];
+
+            if (credential.OwnerId !=
+                _currentOwnerId)
+            {
+                return false;
+            }
+
+            _vaultData.Credentials.Remove(
+                credential
+            );
 
             SaveVault();
 
@@ -215,17 +297,42 @@ namespace SecurePasswordManager.Vault
         {
             if (_key != null)
             {
-                CryptographicOperations.ZeroMemory(_key);
+                CryptographicOperations.ZeroMemory(
+                    _key
+                );
+
                 _key = null;
             }
 
             if (_salt != null)
             {
-                CryptographicOperations.ZeroMemory(_salt);
+                CryptographicOperations.ZeroMemory(
+                    _salt
+                );
+
                 _salt = null;
             }
 
+            _currentOwnerId = null;
             _vaultData = null;
+        }
+
+        private static string CreateOwnerId(
+    byte[] key)
+        {
+            byte[] hash =
+                SHA256.HashData(key);
+
+            try
+            {
+                return Convert.ToHexString(hash);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(
+                    hash
+                );
+            }
         }
     }
 }
